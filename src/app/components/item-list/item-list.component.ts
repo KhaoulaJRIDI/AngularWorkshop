@@ -1,76 +1,45 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {CommonModule, CurrencyPipe, NgForOf, NgIf} from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ItemService } from '../../services/item.service';
 import { Item } from '../../models/item.model';
 
+
 @Component({
   selector: 'app-item-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
-    <div>
-      <h1>Items List</h1>
+  templateUrl: './item-list.component.html',
+  styleUrls: ['./item-list.component.css'],
+  imports: [
+    CurrencyPipe,
+    NgForOf,
+    NgIf,
+    FormsModule
+  ],
 
-
-      <!-- Items Table -->
-      <table *ngIf="!isLoading" class="table table-striped table-bordered table-hover table-sm">
-        <thead class="thead-dark">
-        <tr>
-          <th scope="col">#</th>
-          <th scope="col">Name</th>
-          <th scope="col">Price</th>
-          <th scope="col">Description</th>
-          <th scope="col">Actions</th>
-        </tr>
-        <tbody>
-  <!--    <div *ngIf="errorMessage" class="error-message"> &lt;!&ndash; Display error message &ndash;&gt;
-        {{ errorMessage }}
-      </div>-->
-        <!-- Show data rows when items are available -->
-        <tr *ngFor="let item of items; let i = index">
-          <td>{{ i + 1 }}</td>
-          <td>{{ item.name }}</td>
-          <td>{{ item.price | currency }}</td>
-          <td>{{ item.description }}</td>
-
-          <td>
-            <button type="button" class="btn btn-warning btn-sm" (click)="addItem()">Edit</button>
-            <button type="button" class="btn btn-danger btn-sm" (click)="deleteItem(item.id)">Delete</button>
-          </td>
-        </tr>
-
-
-        <!-- Data rows go here -->
-        </tbody>
-      </table>
-
-      <!-- No Items Message -->
-      <div *ngIf="!isLoading && items.length === 0" class="text-center text-muted">
-        No items available.
-      </div>
-
-
-
-    </div>
-  `,
 })
+
 
 
 export class ItemListComponent implements OnInit {
   items: Item[] = [];
-  newItem = { name: '', price: 0};
-  Item = { name: '', price: 0 , description:''};
+  //newItem = { name: '', price: 0};
+  Item = {name: '', price: 0 , description:''};
   isLoading: boolean = true;  // Property to track if data is loading
   errorMessage: string | null = null;
+
+
+  newItem: Item = { _id: '', name: '', price: 0, description: '' };  // _id initialized
+  //currentItem: Item = { _id: '', name: '', price: 0, description: '' };  // _id initialized
+  currentItem: Item | null = null;  // Initialize as null
   constructor(private itemService: ItemService) {
 
   }
 
 
   ngOnInit(): void {
-    this.fetchItems();  // Fetch the items when the component is initialized
-  }
+    this.fetchItems();
+   }
 
   // Fetch items from the backend
   fetchItems(): void {
@@ -93,24 +62,76 @@ export class ItemListComponent implements OnInit {
   isLoader(): boolean {
     return this.isLoading;
   }
+// Set currentItem when editing
+  openEditModal(item: Item): void {
+    this.currentItem = { ...item };  // Set currentItem to the item to be edited
+  }
+
+  // Set currentItem when deleting
+  openDeleteModal(item: Item): void {
+    this.currentItem = item;  // Set currentItem to the item to be deleted
+  }
   addItem(): void {
     if (this.newItem.name && this.newItem.price) {
-      this.itemService.addItem(this.newItem).subscribe(() => {
-        this.newItem = { name: '', price: 0 };
-        this.loadItems();
+      this.itemService.addItem(this.newItem).subscribe({
+        next: (newItem) => {
+          this.items.push(newItem); // Add the new item locally
+          this.newItem = { name: '', price: 0 , description:''}; // Reset the form
+          this.loadItems();
+        },
+        error: (err) => {
+          console.error('Error adding item:', err);
+          this.errorMessage = 'Failed to add the item.';
+        },
       });
     }
   }
 
-  deleteItem(id: number): void {
-    this.itemService.deleteItem(id).subscribe(() => this.loadItems());
+  editItem(item: Item): void {
+    if (item._id) {
+      this.itemService.updateItem(item._id, item).subscribe({
+        next: (updatedItem) => {
+          const index = this.items.findIndex((i) => i._id === updatedItem._id);
+          if (index > -1) {
+            this.items[index] = updatedItem; // Update the item locally
+          }
+        },
+        error: (err) => {
+          console.error('Error updating item:', err);
+          this.errorMessage = 'Failed to update the item.';
+        },
+      });
+    } else {
+      console.error('Item ID is undefined');
+    }
   }
+
+  deleteItem(id?: string): void {
+    if (id) {  // Check if _id is defined
+      this.itemService.deleteItem(id).subscribe({
+        next: () => {
+          this.items = this.items.filter((item) => item._id !== id); // Remove locally
+        },
+        error: (err) => {
+          console.error('Error deleting item:', err);
+          this.errorMessage = 'Failed to delete the item.';
+        },
+      });
+    }
+    else {
+      console.error('Item ID is undefined');
+    }
+  }
+
+
 
 
   // Define trackItem method for trackBy
-  trackItem(index: number, item: any): number {
-    return item.id;  // Use a unique property, like 'id', to track the item
+
+  trackItem(index: number, item: Item): string {
+    return item._id || 'placeholder-id';  // Use a fallback unique value
   }
+
 
 
 }

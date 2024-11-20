@@ -17,14 +17,14 @@ export class ItemService {
   }
 
   addItem(item: any): Observable<any> {
-    return this.http.post<any>(this.apiUrl, item);
+    return this.http.post<any>(this.apiUrl,item);
   }
 
-  deleteItem(id: number): Observable<any> {
+  deleteItem(id: string): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/${id}`);
   }
 
-  updateItem(id: number,item:any): Observable<any> {
+  updateItem(id: string,item:any): Observable<any> {
     return this.http.put<any>(`${this.apiUrl}/${id}`, item);
   }
 }
